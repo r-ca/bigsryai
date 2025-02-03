@@ -7,10 +7,10 @@ use sysinfo::System;
 
 fn hsv_to_rgb(h: f32, s: f32, v: f32) -> (u8, u8, u8) {
     let i = (h * 6.0).floor() as i32;
-    let f = h * 6.0 - i as f32;
+    let f = h.mul_add(6.0, -(i as f32));
     let p = v * (1.0 - s);
-    let q = v * (1.0 - f * s);
-    let t = v * (1.0 - (1.0 - f) * s);
+    let q = v * f.mul_add(-s, 1.0);
+    let t = v * (1.0 - f).mul_add(-s, 1.0);
     let (r, g, b) = match i.rem_euclid(6) {
         0 => (v, t, p),
         1 => (q, v, p),
@@ -27,7 +27,7 @@ fn hsv_to_rgb(h: f32, s: f32, v: f32) -> (u8, u8, u8) {
     )
 }
 
-/// 各セル内で各種効果を適用して文字を描画する（描画位置は base_x, base_y から）
+/// 各セル内で各種効果を適用して文字を描画する（描画位置は `base_x`, `base_y` から）
 fn draw_cell(
     canvas: &mut RgbaImage,
     base_x: u32,
@@ -53,11 +53,11 @@ fn draw_cell(
                 {
                     let Rgba([r, g, b, a]) = p;
                     let white = 255u8;
-                    let new_r = ((r as f32 * (1.0 - alpha_factor)) + (white as f32 * alpha_factor))
+                    let new_r = f32::from(r).mul_add(1.0 - alpha_factor, f32::from(white) * alpha_factor)
                         .min(255.0) as u8;
-                    let new_g = ((g as f32 * (1.0 - alpha_factor)) + (white as f32 * alpha_factor))
+                    let new_g = f32::from(g).mul_add(1.0 - alpha_factor, f32::from(white) * alpha_factor)
                         .min(255.0) as u8;
-                    let new_b = ((b as f32 * (1.0 - alpha_factor)) + (white as f32 * alpha_factor))
+                    let new_b = f32::from(b).mul_add(1.0 - alpha_factor, f32::from(white) * alpha_factor)
                         .min(255.0) as u8;
                     canvas.put_pixel(dest_x as u32, dest_y as u32, Rgba([new_r, new_g, new_b, a]));
                 }
@@ -80,9 +80,9 @@ fn draw_cell(
             let dest_y = off_y + py + distortion_y.round() as u32;
             if dest_x < canvas.width() && dest_y < canvas.height() {
                 let Rgba([r, g, b, a]) = p;
-                let new_r = ((r as f32) * dark_factor).min(255.0) as u8;
-                let new_g = ((g as f32) * dark_factor).min(255.0) as u8;
-                let new_b = ((b as f32) * dark_factor).min(255.0) as u8;
+                let new_r = (f32::from(r) * dark_factor).min(255.0) as u8;
+                let new_g = (f32::from(g) * dark_factor).min(255.0) as u8;
+                let new_b = (f32::from(b) * dark_factor).min(255.0) as u8;
                 canvas.put_pixel(dest_x, dest_y, Rgba([new_r, new_g, new_b, a]));
             }
         }
@@ -97,10 +97,10 @@ fn draw_cell(
     for (px, py, &p) in text_stamp.enumerate_pixels() {
         let dx = px as f32 - center_x;
         let dy = py as f32 - center_y;
-        let rdx = dx * cos_a - dy * sin_a;
-        let rdy = dx * sin_a + dy * cos_a;
+        let rdx = dx.mul_add(cos_a, -(dy * sin_a));
+        let rdy = dx.mul_add(sin_a, dy * cos_a);
         let new_x = center_x + rdx;
-        let new_y = center_y + rdy * 0.7;
+        let new_y = rdy.mul_add(0.7, center_y);
         let dest_x = base_x + new_x.round() as u32;
         let dest_y = base_y + new_y.round() as u32;
         if dest_x < canvas.width() && dest_y < canvas.height() {
@@ -113,7 +113,7 @@ fn draw_cell(
     // (4) Sparkle 効果
     for (px, py, &p) in text_stamp.enumerate_pixels() {
         let Rgba([r, g, b, a]) = p;
-        let lum = (r as u32 + g as u32 + b as u32) / 3;
+        let lum = (u32::from(r) + u32::from(g) + u32::from(b)) / 3;
         if lum > 200 && ((px + py + cell_index) % 97 == 0) {
             let dest_x = base_x + px;
             let dest_y = base_y + py;
@@ -132,7 +132,7 @@ fn draw_cell(
                 let Rgba([r, g, b, a]) = p;
                 let new_r = r.saturating_sub(10);
                 let new_g = g.saturating_sub(10);
-                let new_b = ((b as u16 + 10).min(255)) as u8;
+                let new_b = ((u16::from(b) + 10).min(255)) as u8;
                 canvas.put_pixel(dest_x, dest_y, Rgba([new_r, new_g, new_b, a]));
             }
         }
@@ -150,15 +150,13 @@ fn draw_cell(
                 && dest_x < canvas.width() as i32
                 && dest_y < canvas.height() as i32
             {
-                let hue = ((px as f32 / stamp_w as f32)
-                    + (py as f32 / stamp_h as f32)
-                    + (cell_index as f32 * 0.05))
+                let hue = (cell_index as f32).mul_add(0.05, (px as f32 / stamp_w as f32) + (py as f32 / stamp_h as f32))
                     % 1.0;
                 let (r2, g2, b2) = hsv_to_rgb(hue, 0.9, 1.0);
                 let Rgba([r, g, b, a]) = p;
-                let new_r = ((r as u16 + r2 as u16) / 2) as u8;
-                let new_g = ((g as u16 + g2 as u16) / 2) as u8;
-                let new_b = ((b as u16 + b2 as u16) / 2) as u8;
+                let new_r = ((u16::from(r) + u16::from(r2)) / 2) as u8;
+                let new_g = ((u16::from(g) + u16::from(g2)) / 2) as u8;
+                let new_b = ((u16::from(b) + u16::from(b2)) / 2) as u8;
                 canvas.put_pixel(dest_x as u32, dest_y as u32, Rgba([new_r, new_g, new_b, a]));
             }
         }
@@ -200,7 +198,7 @@ fn benchmark_render(
     let mut canvas = RgbaImage::from_pixel(final_w, final_h, Rgba([255, 255, 255, 255]));
     for (i, cell) in cell_images.into_iter().enumerate() {
         let dest_x = i as u32 * stamp_w;
-        imageops::overlay(&mut canvas, &cell, dest_x as i64, 0);
+        imageops::overlay(&mut canvas, &cell, i64::from(dest_x), 0);
     }
     (start.elapsed(), canvas)
 }
@@ -214,7 +212,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         2.0
     };
     let threshold = Duration::from_secs_f64(threshold_secs);
-    println!("使用する閾値:\t{:.2} 秒", threshold_secs);
+    println!("使用する閾値:\t{threshold_secs:.2} 秒");
 
     let mut sys = System::new_all();
     sys.refresh_all();
@@ -271,9 +269,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if x >= 0 && y >= 0 && (x as u32) < stamp_width && (y as u32) < stamp_height {
                     let hue = (x as f32) / (stamp_width as f32);
                     let (r, g, b) = hsv_to_rgb(hue, 1.0, 1.0);
-                    let blended_r = (r as f32 * v + 255.0 * (1.0 - v)).round() as u8;
-                    let blended_g = (g as f32 * v + 255.0 * (1.0 - v)).round() as u8;
-                    let blended_b = (b as f32 * v + 255.0 * (1.0 - v)).round() as u8;
+                    let blended_r = f32::from(r).mul_add(v, 255.0 * (1.0 - v)).round() as u8;
+                    let blended_g = f32::from(g).mul_add(v, 255.0 * (1.0 - v)).round() as u8;
+                    let blended_b = f32::from(b).mul_add(v, 255.0 * (1.0 - v)).round() as u8;
                     text_stamp.put_pixel(
                         x as u32,
                         y as u32,
@@ -299,7 +297,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         lower = letter_count;
         let ratio = threshold.as_secs_f64() / duration.as_secs_f64();
         let factor = if ratio < 1.1 { 1.1 } else { ratio };
-        letter_count = (letter_count as f64 * factor).ceil() as u32;
+        letter_count = (f64::from(letter_count) * factor).ceil() as u32;
         let (d, _) = benchmark_render(letter_count, stamp_width, stamp_height, &text_stamp);
         duration = d;
     }
@@ -331,8 +329,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     letter_count = lower;
     println!("■ ベンチマーク結果");
-    println!("ねく数:\t{}", letter_count);
-    println!("スコア:\t{}", letter_count);
+    println!("ねく数:\t{letter_count}");
+    println!("スコア:\t{letter_count}");
 
     // ----- 最終結果画像生成 -----
     // 並列処理で各セルをレンダリングし、横一列画像 (final_bench_canvas) を生成
@@ -346,7 +344,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         final_canvas_width / stamp_width
     };
     let cells_per_row = if cells_per_row == 0 { 1 } else { cells_per_row };
-    let rows = (letter_count + cells_per_row - 1) / cells_per_row;
+    let rows = letter_count.div_ceil(cells_per_row);
     let natural_width = cells_per_row * stamp_width;
     let natural_height = rows * stamp_height;
     let mut natural_img =
@@ -360,7 +358,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let dest_row = i / cells_per_row;
         let dest_x = dest_col * stamp_width;
         let dest_y = dest_row * stamp_height;
-        imageops::overlay(&mut natural_img, &cell, dest_x as i64, dest_y as i64);
+        imageops::overlay(&mut natural_img, &cell, i64::from(dest_x), i64::from(dest_y));
         if i % 100 == 0 || i == letter_count - 1 {
             println!(
                 "セル配置中:\t{} / {} \t(自然画像サイズ: {}x{})",
@@ -374,7 +372,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let final_img = imageops::resize(&natural_img, 1920, 1080, imageops::Lanczos3);
 
     // 結果テキストのオーバーレイ（右下）
-    let result_text = format!("ねく数: {}\nスコア: {}", letter_count, letter_count);
+    let result_text = format!("ねく数: {letter_count}\nスコア: {letter_count}");
     let text_scale = Scale::uniform(64.0);
     let text_v_metrics = font.v_metrics(text_scale);
     let result_glyphs: Vec<_> = font
