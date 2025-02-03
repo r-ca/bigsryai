@@ -69,15 +69,15 @@ jobs:
       - name: Prepare artifacts
         shell: bash
         run: |
-          mkdir -p artifacts
+          mkdir -p artifacts/${{ matrix.target }}
           binary_path="target/${{ matrix.target }}/release/bigsryai"
           if [[ "${{ matrix.target }}" == *"windows"* ]]; then
             binary_path="$binary_path.exe"
           fi
-          cp "$binary_path" "artifacts/${{ matrix.artifact_name }}"
+          cp "$binary_path" "artifacts/${{ matrix.target }}/${{ matrix.artifact_name }}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: binaries
-          path: artifacts/
+          name: binaries-${{ matrix.target }}
+          path: artifacts/${{ matrix.target }}/
