@@ -206,7 +206,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let font_data = include_bytes!("Nyashi.ttf") as &[u8];
 	let font = Font::try_from_bytes(font_data).expect("フォント読み込み失敗");
 	let text = "nexryai";
-	let scale = Scale::uniform(64.0);
+	let scale = Scale::uniform(32.0);
 	let v_metrics = font.v_metrics(scale);
 	let glyphs: Vec<_> = font.layout(text, scale, point(0.0, v_metrics.ascent)).collect();
 	let min_x = glyphs.iter().filter_map(|g| g.pixel_bounding_box().map(|bb| bb.min.x)).min().unwrap_or(0);
