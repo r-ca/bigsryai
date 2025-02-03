@@ -5,9 +5,6 @@ use std::env;
 use std::time::{Duration, Instant};
 use sysinfo::System;
 
-// セルごとに余白を設けない（背景は文字が密集しているほうが面白い）
-const CELL_MARGIN: u32 = 0;
-
 fn hsv_to_rgb(h: f32, s: f32, v: f32) -> (u8, u8, u8) {
     let i = (h * 6.0).floor() as i32;
     let f = h * 6.0 - i as f32;
@@ -128,7 +125,7 @@ fn draw_cell(
 
     // (5) 既存のシュール効果：特定条件で若干右へずらし、色味を微調整
     for (px, py, &p) in text_stamp.enumerate_pixels() {
-        if ((px + py + cell_index) % 101 == 0) {
+        if (px + py + cell_index) % 101 == 0 {
             let dest_x = base_x + px + 3; // 横方向に 3 ピクセルずらす
             let dest_y = base_y + py;
             if dest_x < canvas.width() && dest_y < canvas.height() {
@@ -143,7 +140,7 @@ fn draw_cell(
 
     // (6) 新たなカラフル乱れ効果：1/7 程度のピクセルをにゃぐにゃぐ動かし、HSV で大幅な色変調
     for (px, py, &p) in text_stamp.enumerate_pixels() {
-        if ((px + py + cell_index) % 7 == 0) {
+        if (px + py + cell_index) % 7 == 0 {
             let offset_x = (5.0 * ((px as f32 + cell_index as f32) * 0.27).sin()).round() as i32;
             let offset_y = (5.0 * ((py as f32 + cell_index as f32) * 0.27).cos()).round() as i32;
             let dest_x = base_x as i32 + px as i32 + offset_x;
