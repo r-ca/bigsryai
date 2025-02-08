@@ -21,7 +21,7 @@ jobs:
             artifact_name: bigsryai-linux-x86_64
 
           - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest-arm64
+            os: ubuntu-24.04-arm
             deps: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
             artifact_name: bigsryai-linux-arm64
 
@@ -30,11 +30,6 @@ jobs:
             os: windows-latest
             deps: ""
             artifact_name: bigsryai-windows-x86_64.exe
-
-          - target: aarch64-pc-windows-msvc
-            os: windows-latest-arm64
-            deps: ""
-            artifact_name: bigsryai-windows-arm64.exe
 
           # macOS
           - target: x86_64-apple-darwin
