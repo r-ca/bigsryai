@@ -26,16 +26,82 @@ pub fn annotate_image(mut img: RgbaImage, count: u32, font: &FontArc, sys: &Syst
     let count_text = count.to_string();
 
     // テキスト描画処理
-    draw_overlay_text(
-        &mut img,
-        overlay_x,
-        overlay_y,
-        overlay_w,
-        overlay_h,
-        &count_text,
-        &specs_lines,
-        font,
-    );
+    {
+        let img: &mut RgbaImage = &mut img;
+        let count_text: &str = &count_text;
+        let specs_lines: &[String] = &specs_lines;
+        // フォントサイズ設定
+        let count_scale = PxScale {
+            x: overlay_h as f32 * 0.2,
+            y: overlay_h as f32 * 0.2,
+        };
+        let specs_scale = PxScale {
+            x: overlay_h as f32 * 0.05,
+            y: overlay_h as f32 * 0.05,
+        };
+
+        // カウントテキスト描画
+        let (count_x, count_y) = calculate_centered_position(
+            overlay_x,
+            overlay_y,
+            overlay_w,
+            count_text,
+            count_scale,
+            font,
+        );
+        draw_text_mut(
+            img,
+            Rgba([0, 0, 0, 230]),
+            count_x as i32,
+            count_y as i32,
+            count_scale,
+            font,
+            count_text,
+        );
+
+        // スペックテキスト描画
+        let inner_margin = (overlay_w as f32 * 0.05) as u32;
+        let line_spacing = specs_scale.y as u32 + 24;
+        let max_lines = (overlay_h as f32 / line_spacing as f32).floor() as usize;
+
+        let specs_start_y = calculate_specs_start_y(
+            count_y,
+            count_scale.y as u32,
+            overlay_h,
+            inner_margin,
+            specs_lines.len(),
+            specs_scale.y as u32,
+        );
+
+        specs_lines
+            .iter()
+            .take(max_lines)
+            .enumerate()
+            .for_each(|(i, line)| {
+                draw_text_mut(
+                    img,
+                    Rgba([0, 0, 0, 230]),
+                    (overlay_x + inner_margin) as i32,
+                    (specs_start_y + i as u32 * line_spacing) as i32,
+                    specs_scale,
+                    font,
+                    line,
+                );
+            });
+
+        // 省略記号の描画
+        if specs_lines.len() > max_lines {
+            draw_text_mut(
+                img,
+                Rgba([0, 0, 0, 230]),
+                (overlay_x + inner_margin) as i32,
+                (specs_start_y + max_lines as u32 * line_spacing) as i32,
+                specs_scale,
+                font,
+                "...",
+            );
+        }
+    };
 
     img
 }
@@ -68,89 +134,7 @@ fn create_system_info_lines(sys: &System) -> Vec<String> {
     ]
 }
 
-/// オーバーレイテキスト描画関数
-fn draw_overlay_text(
-    img: &mut RgbaImage,
-    overlay_x: u32,
-    overlay_y: u32,
-    overlay_w: u32,
-    overlay_h: u32,
-    count_text: &str,
-    specs_lines: &[String],
-    font: &FontArc,
-) {
-    // フォントサイズ設定
-    let count_scale = PxScale {
-        x: overlay_h as f32 * 0.2,
-        y: overlay_h as f32 * 0.2,
-    };
-    let specs_scale = PxScale {
-        x: overlay_h as f32 * 0.05,
-        y: overlay_h as f32 * 0.05,
-    };
 
-    // カウントテキスト描画
-    let (count_x, count_y) = calculate_centered_position(
-        overlay_x,
-        overlay_y,
-        overlay_w,
-        count_text,
-        count_scale,
-        font,
-    );
-    draw_text_mut(
-        img,
-        Rgba([0, 0, 0, 230]),
-        count_x as i32,
-        count_y as i32,
-        count_scale,
-        font,
-        count_text,
-    );
-
-    // スペックテキスト描画
-    let inner_margin = (overlay_w as f32 * 0.05) as u32;
-    let line_spacing = specs_scale.y as u32 + 24;
-    let max_lines = (overlay_h as f32 / line_spacing as f32).floor() as usize;
-
-    let specs_start_y = calculate_specs_start_y(
-        count_y,
-        count_scale.y as u32,
-        overlay_h,
-        inner_margin,
-        specs_lines.len(),
-        specs_scale.y as u32,
-    );
-
-    specs_lines
-        .iter()
-        .take(max_lines)
-        .enumerate()
-        .for_each(|(i, line)| {
-            draw_text_mut(
-                img,
-                Rgba([0, 0, 0, 230]),
-                (overlay_x + inner_margin) as i32,
-                (specs_start_y + i as u32 * line_spacing) as i32,
-                specs_scale,
-                font,
-                line,
-            );
-        });
-
-    // 省略記号の描画
-    if specs_lines.len() > max_lines {
-        draw_text_mut(
-            img,
-            Rgba([0, 0, 0, 230]),
-            (overlay_x + inner_margin) as i32,
-            (specs_start_y + max_lines as u32 * line_spacing) as i32,
-            specs_scale,
-            font,
-            "...",
-        );
-    }
-}
 
 /// 中央揃え位置計算
 fn calculate_centered_position(
