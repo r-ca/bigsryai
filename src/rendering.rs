@@ -53,3 +53,54 @@ pub fn benchmark_render(
     }
     (start.elapsed(), canvas)
 }
+
+/// 横一列キャンバス（幅 = letter_count * stamp_w, 高さ = stamp_h）から、
+/// スタンプの縦幅（stamp_h）はそのまま保持し、
+/// 横方向は全ピクセルを連続したストリームとみなして、
+/// 指定の横幅で改行（＝新行の長さ L ピクセルで分割）して再配置する関数です。
+///
+/// ※新グリッド画像の横幅 grid_width = L
+///  新グリッド画像の縦幅 grid_height = (ceil(horizontal.width() / L)) * stamp_h
+///
+/// ここで L は以下の式により求めています：
+///  L ≒ sqrt((16/9) × (horizontal.width() * stamp_h))
+///
+/// 最後に、grid_image を Lanczos3 フィルターで指定サイズ（例：1920×1080）にリサイズして返します。
+pub fn rearrange_by_flat_pixels(
+    horizontal: &RgbaImage,
+    final_width: u32,
+    final_height: u32,
+    stamp_h: u32,
+) -> RgbaImage {
+    // 横一列キャンバスの横幅（＝ letter_count * stamp_w）
+    let horizontal_width = horizontal.width();
+    // 総ピクセル数（横一列キャンバス全体）
+    let total_pixels = (horizontal_width * horizontal.height()) as usize; // horizontal.height() = stamp_h
+
+    // 横方向はスタンプ境界を一切無視し、全ピクセル数と stamp_h を使って新たな横幅 L を求める
+    let ideal_l = ((16.0 / 9.0) * (horizontal_width as f64) * (stamp_h as f64)).sqrt();
+    let L = ideal_l.round() as u32;
+    let new_width = L.max(1);
+
+    // 新画像の行数 = ceil(horizontal_width / new_width)
+    let num_lines = ((horizontal_width as f64) / (new_width as f64)).ceil() as u32;
+    let grid_height = num_lines * stamp_h;
+    
+    // 新グリッド画像（背景は白）
+    let mut grid_image = RgbaImage::from_pixel(new_width, grid_height, Rgba([255, 255, 255, 255]));
+    
+    // 横一列キャンバスをフラットなピクセル列とみなし、row-major 順に Vec に展開
+    let pixels: Vec<Rgba<u8>> = horizontal.pixels().cloned().collect();
+    
+    // 新グリッド画像は「テキスト」を再構成するように、1行あたり new_width ピクセル、全体で num_lines 行
+    // ただし各「行」は stamp_h ピクセルの高さ（つまりスタンプの縦幅はそのまま）
+    for i in 0..(new_width as usize * grid_height as usize) {
+        let src_idx = i % total_pixels;
+        let x = (i % new_width as usize) as u32;
+        let y = (i / new_width as usize) as u32;
+        grid_image.put_pixel(x, y, pixels[src_idx]);
+    }
+    
+    // 最終的に、得られたグリッド画像を指定の最終解像度にリサイズして返す
+    imageops::resize(&grid_image, final_width, final_height, imageops::Lanczos3)
+}

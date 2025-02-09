@@ -1,5 +1,5 @@
 use image::RgbaImage;
-use crate::rendering::benchmark_render;
+use crate::rendering::{benchmark_render, rearrange_by_flat_pixels};
 use crate::text;
 use rusttype::Font;
 
@@ -8,9 +8,9 @@ pub fn run_benchmark(font: &Font) {
     // テキストスタンプ画像生成
     let text_stamp = text::generate_stamp(font, "nexryai", 2);
     let stamp_width = text_stamp.width();
-    let stamp_height = text_stamp.height();
-
-    // 使用する各種エフェクトを配列で用意
+    let stamp_height = text_stamp.height(); // これがスタンプの縦幅として尊重される
+    
+    // 使用する各種エフェクトを従来通り用意
     let effects: Vec<Box<dyn crate::effects::Effect>> = vec![
         Box::new(crate::effects::GlowEffect::default()),
         Box::new(crate::effects::ExtrusionEffect),
@@ -19,8 +19,8 @@ pub fn run_benchmark(font: &Font) {
         Box::new(crate::effects::SurrealEffect),
         Box::new(crate::effects::ColorfulEffect),
     ];
-
-    // 初期の letter_count により負荷を段階的に増加
+    
+    // letter_count を変化させながらベンチマーク（省略）
     let mut letter_count: u32 = 1;
     let mut lower;
     loop {
@@ -58,9 +58,14 @@ pub fn run_benchmark(font: &Font) {
     }
     letter_count = lower;
     println!("Benchmark result: letter_count = {} | score = {}", letter_count, letter_count);
-
-    // 最終結果画像を生成して保存
-    let (_elapsed, final_bench_canvas) = benchmark_render(letter_count, stamp_width, stamp_height, &text_stamp, &effects);
-    final_bench_canvas.save("output.png").expect("Failed to save image");
+    
+    // 横一列キャンバスを生成（width = letter_count * stamp_width, height = stamp_height）
+    let (_elapsed, horizontal_canvas) =
+        benchmark_render(letter_count, stamp_width, stamp_height, &text_stamp, &effects);
+    
+    // 横一列キャンバスの全ピクセルを、「行単位」＝ stamp_h ピクセルごとに連続したテキストとして再配置
+    // このとき横幅は、上記関数で求めた break width L により決定（ピクセル数のみで計算）
+    let final_img = rearrange_by_flat_pixels(&horizontal_canvas, 1920, 1080, stamp_height);
+    final_img.save("output.png").expect("Failed to save image");
     println!("Output image saved as output.png");
 }
