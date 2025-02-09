@@ -1,4 +1,4 @@
-use image::{Rgba, RgbaImage};
+use image::Rgba;
 use crate::effects::{Effect, EffectContext};
 
 /// グローエフェクト（周囲に輝きを付与）

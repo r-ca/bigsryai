@@ -1,4 +1,4 @@
-use image::{Rgba, RgbaImage};
+use image::Rgba;
 use crate::effects::{Effect, EffectContext};
 use crate::text::hsv_to_rgb; // text.rs 内の hsv_to_rgb を利用
 

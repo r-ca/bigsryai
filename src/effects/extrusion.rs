@@ -1,4 +1,4 @@
-use image::{Rgba, RgbaImage};
+use image::Rgba;
 use crate::effects::{Effect, EffectContext};
 
 /// 押し出し（エクストルージョン）エフェクト
