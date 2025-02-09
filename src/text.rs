@@ -24,7 +24,7 @@ pub fn hsv_to_rgb(h: f32, s: f32, v: f32) -> (u8, u8, u8) {
 
 /// フォントからテキストスタンプ画像を生成する
 pub fn generate_stamp(font: &Font, text: &str, margin: u32) -> RgbaImage {
-    let scale = Scale::uniform(256.);
+    let scale = Scale::uniform(32.);
     let v_metrics = font.v_metrics(scale);
     let glyphs: Vec<_> = font.layout(text, scale, point(0.0, v_metrics.ascent)).collect();
     let min_x = glyphs.iter()
