@@ -1,4 +1,4 @@
-use image::{imageops, Rgba, RgbaImage};
+use image::{imageops, GenericImageView, Rgba, RgbaImage};
 use crate::effects::{Effect, EffectContext};
 
 /// EffectContext とエフェクトの配列を受け取り、順次エフェクトを適用する
@@ -52,4 +52,47 @@ pub fn benchmark_render(
         imageops::overlay(&mut canvas, &cell, dest_x as i64, 0);
     }
     (start.elapsed(), canvas)
+}
+
+pub fn rearrange_to_aspect(
+    horizontal: &RgbaImage,
+    stamp_w: u32,
+    stamp_h: u32,
+    letter_count: u32,
+    final_width: u32,
+    final_height: u32,
+) -> RgbaImage {
+    // 目標のアスペクト比（16:9）
+    let target_aspect = 16.0 / 9.0;
+    let mut best_columns = 1;
+    let mut best_diff = f64::MAX;
+    // 1～letter_countまでの候補列数について、グリッド全体のアスペクト比との誤差が最小となる列数を選ぶ
+    for columns in 1..=letter_count {
+        let rows = ((letter_count as f64) / (columns as f64)).ceil() as u32;
+        let grid_width = columns * stamp_w;
+        let grid_height = rows * stamp_h;
+        let aspect = grid_width as f64 / grid_height as f64;
+        let diff = (aspect - target_aspect).abs();
+        if diff < best_diff {
+            best_diff = diff;
+            best_columns = columns;
+        }
+    }
+    let rows = ((letter_count as f64) / (best_columns as f64)).ceil() as u32;
+    let grid_width = best_columns * stamp_w;
+    let grid_height = rows * stamp_h;
+    // 背景は白
+    let mut grid_image = RgbaImage::from_pixel(grid_width, grid_height, Rgba([255, 255, 255, 255]));
+    for i in 0..letter_count {
+        let src_x = i * stamp_w;
+        // 横一列画像からスタンプを切り出す
+        let stamp = horizontal.view(src_x, 0, stamp_w, stamp_h).to_image();
+        let col = i % best_columns;
+        let row = i / best_columns;
+        let dest_x = col * stamp_w;
+        let dest_y = row * stamp_h;
+        imageops::overlay(&mut grid_image, &stamp, dest_x as i64, dest_y as i64);
+    }
+    // 最終的にグリッド画像を指定サイズ（例：1920×1080）にリサイズして出力
+    imageops::resize(&grid_image, final_width, final_height, imageops::Lanczos3)
 }

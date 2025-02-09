@@ -1,5 +1,5 @@
 use image::RgbaImage;
-use crate::rendering::benchmark_render;
+use crate::rendering::{benchmark_render, rearrange_to_aspect};
 use crate::text;
 use rusttype::Font;
 
@@ -59,8 +59,12 @@ pub fn run_benchmark(font: &Font) {
     letter_count = lower;
     println!("Benchmark result: letter_count = {} | score = {}", letter_count, letter_count);
 
-    // 最終結果画像を生成して保存
-    let (_elapsed, final_bench_canvas) = benchmark_render(letter_count, stamp_width, stamp_height, &text_stamp, &effects);
-    final_bench_canvas.save("output.png").expect("Failed to save image");
+    // 横一列のキャンバスを生成
+    let (_elapsed, horizontal_canvas) =
+        benchmark_render(letter_count, stamp_width, stamp_height, &text_stamp, &effects);
+
+    // 横一列キャンバスをグリッド化して最終出力画像に変換（FHD: 1920x1080 の例）
+    let final_img = rearrange_to_aspect(&horizontal_canvas, stamp_width, stamp_height, letter_count, 1920, 1080);
+    final_img.save("output.png").expect("Failed to save image");
     println!("Output image saved as output.png");
 }
