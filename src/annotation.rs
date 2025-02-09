@@ -1,9 +1,11 @@
 use image::{Rgba, RgbaImage};
 use image::imageops;
+use imageproc::drawing::{draw_text_mut, text_size};
 use rusttype::{Font, Scale, point};
 use sysinfo::System;
+use ab_glyph::{FontArc, PxScale};
 
-pub fn annotate_image(mut img: RgbaImage, count: u32, font: &Font, sys: &System) -> RgbaImage {
+pub fn annotate_image(mut img: RgbaImage, count: u32, font: &FontArc, sys: &System) -> RgbaImage {
     // --- オーバーレイ領域の作成 ---
     let overlay_margin_x = img.width() / 10;
     let overlay_margin_y = img.height() / 10;
@@ -19,9 +21,17 @@ pub fn annotate_image(mut img: RgbaImage, count: u32, font: &Font, sys: &System)
 
     // --- sysinfo からシステム情報を取得 ---
     // すでに外部で refresh_all() 済みの System インスタンスを使用する
-    let hostname = sys.host_name().unwrap_or_else(|| "Unknown".to_string());
-    let os_info = sys.long_os_version().unwrap_or_else(|| "Unknown OS".to_string());
-    let cpu_name = sys.global_cpu_info().brand().to_string();
+    let hostname = sysinfo::System::host_name().unwrap_or_else(|| "Unknown".to_string());
+    let os_info = sysinfo::System::long_os_version().unwrap_or_else(|| "Unknown OS".to_string());
+    let _cpu_brand_name = sys.cpus().get(0).map(|c| c.brand());
+    // 上で取得したbrandに加えて同じようにnameも取得してcpu_nameに格納
+    let _cpu_name = sys.cpus().get(0).map(|c| c.name());
+    let cpu_name = match (_cpu_brand_name, _cpu_name) {
+        (Some(brand), Some(name)) => format!("{} ({})", brand, name),
+        (Some(brand), None) => brand.to_string(),
+        (None, Some(name)) => name.to_string(),
+        _ => "Unknown CPU".to_string(),
+    };
     let core_count = sys.cpus().len();
     let total_memory_kb = sys.total_memory();
     let used_memory_kb = sys.used_memory();
@@ -46,32 +56,25 @@ pub fn annotate_image(mut img: RgbaImage, count: u32, font: &Font, sys: &System)
         ),
     ];
 
-    // --- テキスト描画（imageproc を使用） ---
-    use imageproc::drawing::draw_text_mut;
-    let text_color = Rgba([0, 0, 0, 255]); // 黒
 
-    // カウント用のフォントは大きめ（例：64pt）
-    let count_scale = Scale::uniform(64.0);
-    // スペック用のフォントは小さめ（例：24pt）
-    let specs_scale = Scale::uniform(24.0);
+    // --- テキスト描画 ---
+    let text_color = Rgba([0, 0, 0, 255]); // 黒色
 
-    // カウントテキストはオーバーレイ内で水平中央に配置
-    let v_metrics_count = font.v_metrics(count_scale);
-    let glyphs_count: Vec<_> = font.layout(&count_text, count_scale, point(0.0, v_metrics_count.ascent)).collect();
-    let count_width = glyphs_count
-        .iter()
-        .rev()
-        .find_map(|g| g.pixel_bounding_box().map(|bb| bb.max.x as u32))
-        .unwrap_or(0);
-    let count_x = overlay_x + (overlay_w.saturating_sub(count_width)) / 2;
-    let count_y = overlay_y + 20; // 上からの余白
+    // カウント用フォントは大きめ（例：64px）、スペック用は小さめ（例：24px）
+    let count_scale = PxScale { x: 64.0, y: 64.0 };
+    let specs_scale = PxScale { x: 24.0, y: 24.0 };
+
+    // カウントテキストをオーバーレイ内で水平中央に配置
+    let (count_width, _count_height) = text_size(count_scale, font, &count_text);
+    let count_x = overlay_x + (overlay_w.saturating_sub(count_width as u32)) / 2;
+    let count_y = overlay_y + 20; // 上から20pxの余白
 
     draw_text_mut(&mut img, text_color, count_x as i32, count_y as i32, count_scale, font, &count_text);
 
-    // スペック情報はカウントの下部、オーバーレイ内の左側に配置
-    let specs_start_x = overlay_x + 20;  // 左から20px余白
-    let specs_start_y = count_y + 80;      // カウント下から約80px
-    let line_spacing = 30;               // 行間30px
+    // システムスペック情報はカウントの下部、オーバーレイ内左側に左揃えで配置
+    let specs_start_x = overlay_x + 20; // 左から20px余白
+    let specs_start_y = count_y + 80;     // カウント下から約80px
+    let line_spacing = 30;              // 行間30px
 
     for (i, line) in specs_lines.iter().enumerate() {
         let y = specs_start_y + i as u32 * line_spacing;
