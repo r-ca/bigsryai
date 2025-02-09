@@ -18,7 +18,7 @@ impl Config {
             output_file: "output.png".to_string(),
             stamp_margin: 2,
             stamp_text: "nexryai".to_string(),
-            font_size: 32.0,
+            font_size: 96.0,
         }
     }
 }
