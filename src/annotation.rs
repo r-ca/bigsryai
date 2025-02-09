@@ -1,10 +1,12 @@
+use std::time::Duration;
+
 use ab_glyph::{FontArc, PxScale};
 use image::imageops::overlay;
 use image::{Rgba, RgbaImage};
 use imageproc::drawing::draw_text_mut;
 use sysinfo::System;
 
-pub fn annotate_image(mut img: RgbaImage, count: u32, font: &FontArc, sys: &System) -> RgbaImage {
+pub fn annotate_image(mut img: RgbaImage, count: u32, duration: Duration, font: &FontArc, sys: &System) -> RgbaImage {
     // オーバーレイ領域の設定
     let (overlay_x, overlay_y, overlay_w, overlay_h) = {
         let margin_x = img.width() / 10;
@@ -57,6 +59,26 @@ pub fn annotate_image(mut img: RgbaImage, count: u32, font: &FontArc, sys: &Syst
             count_scale,
             font,
             count_text,
+        );
+
+        // レンダリング時間をcountの下に描画
+        let duration_text = format!("{:?}", duration);
+        let (duration_x, duration_y) = calculate_centered_position(
+            overlay_x,
+            overlay_y,
+            overlay_w,
+            &duration_text,
+            specs_scale, // Workaround, 理解し直してちゃんと専用をもたせる
+            font,
+        );
+        draw_text_mut(
+            img,
+            Rgba([0, 0, 0, 230]),
+            duration_x as i32,
+            duration_y as i32,
+            specs_scale,
+            font,
+            &duration_text,
         );
 
         // スペックテキスト描画
