@@ -128,7 +128,7 @@ fn create_system_info_lines(sys: &System) -> Vec<String> {
 
     vec![
         format!("Hostname: {hostname}"),
-        format!("CPU: {} ({} cores)", cpu_info, sys.cpus().len()),
+        format!("CPU: {} ({})", cpu_info, sys.cpus().len()),
         format!("OS: {os_info}"),
         memory_info,
     ]
