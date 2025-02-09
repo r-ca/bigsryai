@@ -147,7 +147,7 @@ fn calculate_centered_position(
 ) -> (u32, u32) {
     let (text_width, _) = imageproc::drawing::text_size(scale, font, text);
     (
-        x + (width.saturating_sub(text_width as u32)) / 2,
+        x + (width.saturating_sub(text_width)) / 2,
         y + (width as f32 * 0.05) as u32,
     )
 }
