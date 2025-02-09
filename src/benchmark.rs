@@ -10,69 +10,36 @@ pub struct BenchmarkResult {
     pub duration: Duration,
 }
 
+const SAFETY_FACTOR: f64 = 1.1;
+const MAX_ITERATIONS: u32 = 100;
+
 pub fn run(config: &Config, font: &Font) -> BenchmarkResult {
-    // Config 経由でフォントサイズを渡すように変更
     let text_stamp = text::generate_stamp(
         font,
         &config.stamp_text,
         config.stamp_margin,
         config.font_size,
     );
-    let stamp_width = text_stamp.width();
-    let stamp_height = text_stamp.height();
+    
+    let effects = initialize_effects();
+    let (stamp_width, stamp_height) = (text_stamp.width(), text_stamp.height());
+    let threshold = Duration::from_secs_f64(config.threshold_secs);
 
-    // ネストされた各エフェクトモジュールを使用してエフェクトを初期化
-    let effects: Vec<Box<dyn crate::effects::Effect>> = vec![
-        Box::new(crate::effects::glow::GlowEffect::default()),
-        Box::new(crate::effects::extrusion::ExtrusionEffect),
-        Box::new(crate::effects::rotation::RotationEffect),
-        Box::new(crate::effects::sparkle::SparkleEffect),
-        Box::new(crate::effects::surreal::SurrealEffect),
-        Box::new(crate::effects::colorful::ColorfulEffect),
-    ];
+    let letter_count = determine_max_letters(
+        stamp_width,
+        stamp_height,
+        &text_stamp,
+        &effects,
+        threshold,
+    );
 
-    let mut letter_count: u32 = 1;
-    let mut lower: u32;
-    let threshold_duration = std::time::Duration::from_secs_f64(config.threshold_secs);
-    loop {
-        lower = letter_count;
-        let (duration, _) =
-            benchmark_render(letter_count, stamp_width, stamp_height, &text_stamp, &effects);
-        let canvas_width = letter_count * stamp_width;
-        println!(
-            "Benchmarking: letter_count = {} | canvas = {}x{} | duration = {:?}",
-            letter_count, canvas_width, stamp_height, duration
-        );
-        let ratio = threshold_duration.as_secs_f64() / duration.as_secs_f64();
-        let factor = if ratio < 1.1 { 1.1 } else { ratio };
-        letter_count = (letter_count as f64 * factor).ceil() as u32;
-        if duration > threshold_duration {
-            println!("Threshold exceeded.");
-            break;
-        }
-    }
-
-    let mut upper = letter_count;
-    while upper - lower > 1 {
-        let mid = (lower + upper) / 2;
-        let (duration, _) =
-            benchmark_render(mid, stamp_width, stamp_height, &text_stamp, &effects);
-        let canvas_width = mid * stamp_width;
-        println!(
-            "Binary search: letter_count = {} | canvas = {}x{} | duration = {:?}",
-            mid, canvas_width, stamp_height, duration
-        );
-        if duration > threshold_duration {
-            upper = mid;
-        } else {
-            lower = mid;
-        }
-    }
-    letter_count = lower;
-    println!("Benchmark result: letter_count = {} | score = {}", letter_count, letter_count);
-
-    let (final_duration, horizontal_canvas) =
-        benchmark_render(letter_count, stamp_width, stamp_height, &text_stamp, &effects);
+    let (duration, horizontal_canvas) = benchmark_render(
+        letter_count,
+        stamp_width,
+        stamp_height,
+        &text_stamp,
+        &effects,
+    );
 
     let final_image = rearrange_to_aspect(
         &horizontal_canvas,
@@ -86,6 +53,129 @@ pub fn run(config: &Config, font: &Font) -> BenchmarkResult {
     BenchmarkResult {
         final_image,
         letter_count,
-        duration: final_duration,
+        duration,
     }
+}
+
+/// エフェクト初期化
+fn initialize_effects() -> Vec<Box<dyn crate::effects::Effect>> {
+    vec![
+        Box::new(crate::effects::glow::GlowEffect::default()),
+        Box::new(crate::effects::extrusion::ExtrusionEffect),
+        Box::new(crate::effects::rotation::RotationEffect),
+        Box::new(crate::effects::sparkle::SparkleEffect),
+        Box::new(crate::effects::surreal::SurrealEffect),
+        Box::new(crate::effects::colorful::ColorfulEffect),
+    ]
+}
+
+/// 最大文字数決定アルゴリズム
+fn determine_max_letters(
+    stamp_width: u32,
+    stamp_height: u32,
+    text_stamp: &image::RgbaImage,
+    effects: &[Box<dyn crate::effects::Effect>],
+    threshold: Duration,
+) -> u32 {
+    let mut lower_bound = exponential_search(
+        stamp_width,
+        stamp_height,
+        text_stamp,
+        effects,
+        threshold,
+    );
+
+    binary_search(
+        lower_bound,
+        stamp_width,
+        stamp_height,
+        text_stamp,
+        effects,
+        threshold,
+    )
+}
+
+/// 指数関数的探索フェーズ
+fn exponential_search(
+    stamp_width: u32,
+    stamp_height: u32,
+    text_stamp: &image::RgbaImage,
+    effects: &[Box<dyn crate::effects::Effect>],
+    threshold: Duration,
+) -> u32 {
+    let mut letter_count = 1;
+    for _ in 0..MAX_ITERATIONS {
+        let (duration, _) = benchmark_render(
+            letter_count,
+            stamp_width,
+            stamp_height,
+            text_stamp,
+            effects,
+        );
+
+        log_benchmark_step(letter_count, stamp_width, stamp_height, duration);
+
+        if duration > threshold {
+            return letter_count;
+        }
+
+        letter_count = calculate_next_letter_count(letter_count, duration, threshold);
+    }
+    letter_count
+}
+
+/// 二分探索フェーズ
+fn binary_search(
+    mut low: u32,
+    stamp_width: u32,
+    stamp_height: u32,
+    text_stamp: &image::RgbaImage,
+    effects: &[Box<dyn crate::effects::Effect>],
+    threshold: Duration,
+) -> u32 {
+    let mut high = low * 2;
+    let mut best = low;
+
+    for _ in 0..MAX_ITERATIONS {
+        if high - low <= 1 {
+            break;
+        }
+
+        let mid = (low + high) / 2;
+        let (duration, _) = benchmark_render(
+            mid,
+            stamp_width,
+            stamp_height,
+            text_stamp,
+            effects,
+        );
+
+        log_benchmark_step(mid, stamp_width, stamp_height, duration);
+
+        if duration <= threshold {
+            low = mid;
+            best = mid;
+        } else {
+            high = mid;
+        }
+    }
+    best
+}
+
+/// ベンチマークステップのロギング
+fn log_benchmark_step(letter_count: u32, width: u32, height: u32, duration: Duration) {
+    println!(
+        "Benchmark step: letters = {}, canvas = {}x{}, duration = {:?}",
+        letter_count,
+        letter_count * width,
+        height,
+        duration
+    );
+}
+
+/// 次の文字数計算
+fn calculate_next_letter_count(current: u32, duration: Duration, threshold: Duration) -> u32 {
+    let ratio = threshold.as_secs_f64() / duration.as_secs_f64();
+    let factor = if ratio < SAFETY_FACTOR { SAFETY_FACTOR } else { ratio };
+    (current as f64 * factor).ceil().max(current as f64 + 1.0) as u32
 }
