@@ -1,23 +1,14 @@
 use image::{imageops, Rgba, RgbaImage};
-use crate::effects::Effect;
+use crate::effects::{Effect, EffectContext};
 
-/// 複数エフェクトを順に適用してセル内に描画する
-pub fn draw_cell_with_effects(
-    canvas: &mut RgbaImage,
-    base_x: u32,
-    base_y: u32,
-    text_stamp: &RgbaImage,
-    cell_index: u32,
-    stamp_w: u32,
-    stamp_h: u32,
-    effects: &[Box<dyn Effect>],
-) {
-    for effect in effects.iter() {
-        effect.apply(canvas, base_x, base_y, text_stamp, cell_index, stamp_w, stamp_h);
+/// EffectContext とエフェクトの配列を受け取り、順次エフェクトを適用する
+pub fn draw_cell_with_effects(context: &mut EffectContext, effects: &[Box<dyn Effect>]) {
+    for effect in effects {
+        effect.apply(context);
     }
 }
 
-/// 1セル分の画像をレンダリングして返す
+/// 1 セル分の画像をレンダリングして返す
 pub fn render_cell(
     cell_index: u32,
     text_stamp: &RgbaImage,
@@ -26,11 +17,20 @@ pub fn render_cell(
     effects: &[Box<dyn Effect>],
 ) -> RgbaImage {
     let mut cell_canvas = RgbaImage::from_pixel(stamp_w, stamp_h, Rgba([255, 255, 255, 255]));
-    draw_cell_with_effects(&mut cell_canvas, 0, 0, text_stamp, cell_index, stamp_w, stamp_h, effects);
+    let mut context = EffectContext {
+        canvas: &mut cell_canvas,
+        base_x: 0,
+        base_y: 0,
+        text_stamp,
+        cell_index,
+        stamp_w,
+        stamp_h,
+    };
+    draw_cell_with_effects(&mut context, effects);
     cell_canvas
 }
 
-/// 並列処理でセル画像を合成して横一列の画像を生成する
+/// 並列処理でセル画像を合成し、横一列の画像を生成する
 pub fn benchmark_render(
     letter_count: u32,
     stamp_w: u32,

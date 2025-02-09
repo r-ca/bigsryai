@@ -1,3 +1,4 @@
+use image::RgbaImage;
 use crate::rendering::benchmark_render;
 use crate::text;
 use rusttype::Font;

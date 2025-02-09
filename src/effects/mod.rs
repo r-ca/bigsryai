@@ -1,18 +1,21 @@
 use image::RgbaImage;
 
+/// エフェクト適用時に共通で利用する情報をまとめたコンテキスト
+pub struct EffectContext<'a> {
+    pub canvas: &'a mut RgbaImage,
+    pub base_x: u32,
+    pub base_y: u32,
+    pub text_stamp: &'a RgbaImage,
+    pub cell_index: u32,
+    pub stamp_w: u32,
+    pub stamp_h: u32,
+}
+
 /// エフェクト共通トレイト
+/// `Send + Sync` を付与してスレッド間でも安全に扱えるようにします
 pub trait Effect: Send + Sync {
-    /// キャンバス上の (base_x, base_y) から、text_stamp をもとにエフェクトを適用する
-    fn apply(
-        &self,
-        canvas: &mut RgbaImage,
-        base_x: u32,
-        base_y: u32,
-        text_stamp: &RgbaImage,
-        cell_index: u32,
-        stamp_w: u32,
-        stamp_h: u32,
-    );
+    /// EffectContext をもとにエフェクトを適用する
+    fn apply(&self, context: &mut EffectContext);
 }
 
 pub mod glow;
