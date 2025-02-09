@@ -121,8 +121,8 @@ fn create_system_info_lines(sys: &System) -> Vec<String> {
         .unwrap_or_else(|| "Unknown CPU".into());
 
     let memory_info = {
-        let total = sys.total_memory() as f64 / 1_048_576.0; // KB to GB
-        let used = sys.used_memory() as f64 / 1_048_576.0;
+        let total = sys.total_memory() as f64 / 1_073_741_824.0; // KB to GB
+        let used = sys.used_memory() as f64 / 1_073_741_824.0;
         format!("Memory: {used:.2} GB / {total:.2} GB")
     };
 
