@@ -54,9 +54,9 @@ pub fn annotate_image(mut img: RgbaImage, count: u32, font: &FontArc, sys: &Syst
         ),
     ];
 
-    // --- テキスト描画用フォントサイズ（オーバーレイに合わせた相対サイズ） ---
-    let count_font_size = overlay_w as f32 * 0.15;
-    let specs_font_size = overlay_w as f32 * 0.06;
+    // --- テキスト描画用フォントサイズの設定 ---
+    let count_font_size = overlay_h as f32 * 0.2;
+    let specs_font_size = overlay_h as f32 * 0.05;
     let count_scale = PxScale { x: count_font_size, y: count_font_size };
     let specs_scale = PxScale { x: specs_font_size, y: specs_font_size };
 
@@ -65,14 +65,30 @@ pub fn annotate_image(mut img: RgbaImage, count: u32, font: &FontArc, sys: &Syst
     let (count_width, _) = text_size(count_scale, font, &count_text);
     let count_x = overlay_x + (overlay_w.saturating_sub(count_width as u32)) / 2;
     let count_y = overlay_y + inner_margin as u32;
-    draw_text_mut(&mut img, Rgba([0, 0, 0, 255]), count_x as i32, count_y as i32, count_scale, font, &count_text);
+    draw_text_mut(&mut img, Rgba([0, 0, 0, 230]), count_x as i32, count_y as i32, count_scale, font, &count_text);
 
+    // let specs_start_x = overlay_x + inner_margin as u32;
+    // let specs_start_y = count_y + count_font_size as u32 + inner_margin as u32;
+    // let line_spacing = specs_font_size as u32 + 24;
+    // for (i, line) in specs_lines.iter().enumerate() {
+    //     let y = specs_start_y + i as u32 * line_spacing;
+    //     draw_text_mut(&mut img, Rgba([0, 0, 0, 230]), specs_start_x as i32, y as i32, specs_scale, font, line);
+    // }
+
+    // スペックについて、はみ出す場合は ... で省略
     let specs_start_x = overlay_x + inner_margin as u32;
-    let specs_start_y = count_y + count_font_size as u32 + inner_margin as u32;
-    let line_spacing = specs_font_size as u32 + 10;
-    for (i, line) in specs_lines.iter().enumerate() {
+    // カウントテキストの下の余ったスペースの中で上下中央に配置
+    let specs_start_y = count_y + count_font_size as u32 + inner_margin as u32 + (overlay_h - count_y - count_font_size as u32 - inner_margin as u32 - specs_lines.len() as u32 * specs_font_size as u32) / 2;
+    let line_spacing = specs_font_size as u32 + 24;
+    let max_line_count = (overlay_h as f32 / line_spacing as f32).floor() as usize;
+    for (i, line) in specs_lines.iter().enumerate().take(max_line_count) {
         let y = specs_start_y + i as u32 * line_spacing;
-        draw_text_mut(&mut img, Rgba([0, 0, 0, 255]), specs_start_x as i32, y as i32, specs_scale, font, line);
+        draw_text_mut(&mut img, Rgba([0, 0, 0, 230]), specs_start_x as i32, y as i32, specs_scale, font, line);
+    }
+    if specs_lines.len() > max_line_count {
+        let y = specs_start_y + max_line_count as u32 * line_spacing;
+        let ellipsis = "...";
+        draw_text_mut(&mut img, Rgba([0, 0, 0, 230]), specs_start_x as i32, y as i32, specs_scale, font, ellipsis);
     }
 
     img
