@@ -8,7 +8,7 @@ impl Effect for RotationEffect {
     fn apply(&self, context: &mut EffectContext) {
         let center_x = context.stamp_w as f32 / 2.0;
         let center_y = context.stamp_h as f32 / 2.0;
-        let angle = 0.3 * ((context.cell_index as f32 * 0.7).sin());
+        let angle = 0.2 * ((context.cell_index as f32 * 0.7).sin());
         let cos_a = angle.cos();
         let sin_a = angle.sin();
         for (px, py, &p) in context.text_stamp.enumerate_pixels() {
