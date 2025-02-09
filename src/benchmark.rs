@@ -77,7 +77,7 @@ fn determine_max_letters(
     effects: &[Box<dyn crate::effects::Effect>],
     threshold: Duration,
 ) -> u32 {
-    let mut lower_bound = exponential_search(
+    let lower_bound = exponential_search(
         stamp_width,
         stamp_height,
         text_stamp,
