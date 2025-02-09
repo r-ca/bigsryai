@@ -1,7 +1,7 @@
-use image::{Rgba, RgbaImage};
-use image::imageops::overlay;
-use imageproc::drawing::draw_text_mut;
 use ab_glyph::{FontArc, PxScale};
+use image::imageops::overlay;
+use image::{Rgba, RgbaImage};
+use imageproc::drawing::draw_text_mut;
 use sysinfo::System;
 
 pub fn annotate_image(mut img: RgbaImage, count: u32, font: &FontArc, sys: &System) -> RgbaImage {
@@ -42,18 +42,20 @@ pub fn annotate_image(mut img: RgbaImage, count: u32, font: &FontArc, sys: &Syst
 
 /// システム情報文字列の生成
 fn create_system_info_lines(sys: &System) -> Vec<String> {
-    let hostname = sys.host_name().unwrap_or_else(|| "Unknown".into());
-    let os_info = sys.long_os_version().unwrap_or_else(|| "Unknown OS".into());
-    
-    let cpu_info = sys.cpus().first().map(|cpu| {
-        match (cpu.brand(), cpu.name()) {
+    let hostname = sysinfo::System::host_name().unwrap_or_else(|| "Unknown".into());
+    let os_info = sysinfo::System::long_os_version().unwrap_or_else(|| "Unknown OS".into());
+
+    let cpu_info = sys
+        .cpus()
+        .first()
+        .map(|cpu| match (cpu.brand(), cpu.name()) {
             (brand, name) if brand == name => brand.to_string(),
             (brand, name) => format!("{brand} ({name})"),
-        }
-    }).unwrap_or_else(|| "Unknown CPU".into());
+        })
+        .unwrap_or_else(|| "Unknown CPU".into());
 
     let memory_info = {
-        let total = sys.total_memory() as f64 / 1_048_576.0;  // KB to GB
+        let total = sys.total_memory() as f64 / 1_048_576.0; // KB to GB
         let used = sys.used_memory() as f64 / 1_048_576.0;
         format!("Memory: {used:.2} GB / {total:.2} GB")
     };
@@ -120,17 +122,21 @@ fn draw_overlay_text(
         specs_scale.y as u32,
     );
 
-    specs_lines.iter().take(max_lines).enumerate().for_each(|(i, line)| {
-        draw_text_mut(
-            img,
-            Rgba([0, 0, 0, 230]),
-            (overlay_x + inner_margin) as i32,
-            (specs_start_y + i as u32 * line_spacing) as i32,
-            specs_scale,
-            font,
-            line,
-        );
-    });
+    specs_lines
+        .iter()
+        .take(max_lines)
+        .enumerate()
+        .for_each(|(i, line)| {
+            draw_text_mut(
+                img,
+                Rgba([0, 0, 0, 230]),
+                (overlay_x + inner_margin) as i32,
+                (specs_start_y + i as u32 * line_spacing) as i32,
+                specs_scale,
+                font,
+                line,
+            );
+        });
 
     // 省略記号の描画
     if specs_lines.len() > max_lines {
