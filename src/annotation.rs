@@ -41,6 +41,10 @@ pub fn annotate_image(mut img: RgbaImage, count: u32, duration: Duration, font: 
             x: overlay_h as f32 * 0.05,
             y: overlay_h as f32 * 0.05,
         };
+        let duration_scale = PxScale {
+            x: overlay_h as f32 * 0.04,
+            y: overlay_h as f32 * 0.04,
+        };
 
         // カウントテキスト描画
         let (count_x, count_y) = calculate_centered_position(
@@ -61,14 +65,14 @@ pub fn annotate_image(mut img: RgbaImage, count: u32, duration: Duration, font: 
             count_text,
         );
 
-        // レンダリング時間をcountの下に描画
+        // レンダリング時間をカウントの下に描画
         let duration_text = format!("{:?}", duration);
         let (duration_x, duration_y) = calculate_centered_position(
             overlay_x,
-            overlay_y,
+            count_y + count_scale.y as u32,
             overlay_w,
             &duration_text,
-            specs_scale, // Workaround, 理解し直してちゃんと専用をもたせる
+            duration_scale,
             font,
         );
         draw_text_mut(
@@ -76,7 +80,7 @@ pub fn annotate_image(mut img: RgbaImage, count: u32, duration: Duration, font: 
             Rgba([0, 0, 0, 230]),
             duration_x as i32,
             duration_y as i32,
-            specs_scale,
+            duration_scale,
             font,
             &duration_text,
         );
