@@ -1,14 +1,12 @@
 use image::{imageops, GenericImageView, Rgba, RgbaImage};
 use crate::effects::{Effect, EffectContext};
 
-/// EffectContext とエフェクトの配列を受け取り、順次エフェクトを適用する
 pub fn draw_cell_with_effects(context: &mut EffectContext, effects: &[Box<dyn Effect>]) {
     for effect in effects {
         effect.apply(context);
     }
 }
 
-/// 1 セル分の画像をレンダリングして返す
 pub fn render_cell(
     cell_index: u32,
     text_stamp: &RgbaImage,
@@ -30,7 +28,6 @@ pub fn render_cell(
     cell_canvas
 }
 
-/// 並列処理でセル画像を合成し、横一列の画像を生成する
 pub fn benchmark_render(
     letter_count: u32,
     stamp_w: u32,
@@ -62,11 +59,9 @@ pub fn rearrange_to_aspect(
     final_width: u32,
     final_height: u32,
 ) -> RgbaImage {
-    // 目標のアスペクト比（16:9）
     let target_aspect = 16.0 / 9.0;
     let mut best_columns = 1;
     let mut best_diff = f64::MAX;
-    // 1～letter_countまでの候補列数について、グリッド全体のアスペクト比との誤差が最小となる列数を選ぶ
     for columns in 1..=letter_count {
         let rows = ((letter_count as f64) / (columns as f64)).ceil() as u32;
         let grid_width = columns * stamp_w;
@@ -81,11 +76,9 @@ pub fn rearrange_to_aspect(
     let rows = ((letter_count as f64) / (best_columns as f64)).ceil() as u32;
     let grid_width = best_columns * stamp_w;
     let grid_height = rows * stamp_h;
-    // 背景は白
     let mut grid_image = RgbaImage::from_pixel(grid_width, grid_height, Rgba([255, 255, 255, 255]));
     for i in 0..letter_count {
         let src_x = i * stamp_w;
-        // 横一列画像からスタンプを切り出す
         let stamp = horizontal.view(src_x, 0, stamp_w, stamp_h).to_image();
         let col = i % best_columns;
         let row = i / best_columns;
@@ -93,6 +86,5 @@ pub fn rearrange_to_aspect(
         let dest_y = row * stamp_h;
         imageops::overlay(&mut grid_image, &stamp, dest_x as i64, dest_y as i64);
     }
-    // 最終的にグリッド画像を指定サイズ（例：1920×1080）にリサイズして出力
     imageops::resize(&grid_image, final_width, final_height, imageops::Lanczos3)
 }
