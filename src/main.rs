@@ -27,7 +27,7 @@ fn main() {
     let ab_font = FontArc::try_from_slice(font_data).expect("Failed to load font via ab_glyph");
 
     // 結果画像にオーバーレイ・ブラー・テキスト（カウント＋スペック情報）を追加
-    let annotated_image = annotation::annotate_image(result.final_image, result.letter_count, &ab_font, &sys);
+    let annotated_image = annotation::annotate_image(result.final_image, result.letter_count, result.duration, &ab_font, &sys);
 
     annotated_image
         .save(&config.output_file)
